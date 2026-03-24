@@ -1,14 +1,31 @@
-from widgetastic.widget import FileInput, Select, Table, Text, TextInput, View
-from widgetastic_patternfly import BreadCrumb
+from widgetastic.utils import ParametrizedLocator
+from widgetastic.widget import FileInput, Select, Text, TextInput, View
+from widgetastic_patternfly import BreadCrumb, Tab
+from widgetastic_patternfly5.ouia import PatternflyTable
 
-from airgun.views.common import BaseLoggedInView, SatTab, SearchableViewMixin
-from airgun.widgets import ConfirmationDialog, EditableEntry, ReadOnlyEntry
+from airgun.views.common import BaseLoggedInView, SearchableViewMixinPF4
+from airgun.widgets import (
+    ConfirmationDialog,
+    EditableEntry,
+    PF4Search,
+    ReadOnlyEntry,
+)
 
 
-class ContentCredentialsTableView(BaseLoggedInView, SearchableViewMixin):
-    title = Text("//h2[contains(., 'Content Credentials')]")
+class ContentCredentialsTableView(BaseLoggedInView, SearchableViewMixinPF4):
+    title = Text("//h1[contains(., 'Content Credentials')]")
     new = Text("//button[contains(@href, '/content_credentials/new')]")
-    table = Table('.//table', column_widgets={'Name': Text('./a')})
+    table = PatternflyTable(
+        component_id='content-credentials-table',
+        column_widgets={
+            'Name': Text('./a'),
+            'Organization': Text('.//td[2]'),
+            'Type': Text('.//td[3]'),
+            'Products': Text('.//td[4]'),
+            'Repositories': Text('.//td[5]'),
+            'Alternate content sources': Text('.//td[6]'),
+        },
+    )
 
     @property
     def is_displayed(self):
@@ -43,12 +60,12 @@ class ContentCredentialEditView(BaseLoggedInView):
         breadcrumb_loaded = self.browser.wait_for_element(self.breadcrumb, exception=False)
         return (
             breadcrumb_loaded
-            and self.breadcrumb.locations[0] == 'Content Credential'
-            and self.breadcrumb.read() != 'New Content Credential'
+            and self.breadcrumb.locations[0] == 'Content Credentials'
         )
 
     @View.nested
-    class details(SatTab):
+    class details(Tab):
+        TAB_LOCATOR = ParametrizedLocator('//a[contains(@href, "#/details")]')
         name = EditableEntry(name='Name')
         content_type = ReadOnlyEntry(name='Type')
         content = EditableEntry(name='Content')
@@ -56,9 +73,53 @@ class ContentCredentialEditView(BaseLoggedInView):
         repos = ReadOnlyEntry(name='Repositories')
 
     @View.nested
-    class products(SatTab, SearchableViewMixin):
-        table = Table('.//table', column_widgets={'Name': Text('./a')})
+    class products(Tab):
+        TAB_LOCATOR = ParametrizedLocator('//a[contains(@href, "#/products")]')
+        searchbox = PF4Search()
+        table = PatternflyTable(
+            component_id='content-credential-products-table',
+            column_widgets={
+                'Name': Text('./a'),
+                'Used as': Text('.//td[2]'),
+            },
+        )
+
+        def search(self, value):
+            self.searchbox.search(value)
+            return self.table.read()
 
     @View.nested
-    class repositories(SatTab, SearchableViewMixin):
-        table = Table('.//table', column_widgets={'Name': Text('./a')})
+    class repositories(Tab):
+        TAB_LOCATOR = ParametrizedLocator('//a[contains(@href, "#/repositories")]')
+        searchbox = PF4Search()
+        table = PatternflyTable(
+            component_id='content-credential-repositories-table',
+            column_widgets={
+                'Name': Text('./a'),
+                'Product': Text('.//td[2]'),
+                'Type': Text('.//td[3]'),
+                'Used as': Text('.//td[4]'),
+            },
+        )
+
+        def search(self, value):
+            self.searchbox.search(value)
+            return self.table.read()
+
+    @View.nested
+    class alternate_content_sources(Tab):
+        TAB_LOCATOR = ParametrizedLocator(
+            '//a[contains(@href, "#/alternate_content_sources")]'
+        )
+        searchbox = PF4Search()
+        table = PatternflyTable(
+            component_id='content-credential-acs-table',
+            column_widgets={
+                'Name': Text('./a'),
+                'Used as': Text('.//td[2]'),
+            },
+        )
+
+        def search(self, value):
+            self.searchbox.search(value)
+            return self.table.read()
